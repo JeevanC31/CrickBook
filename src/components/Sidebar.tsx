@@ -13,6 +13,7 @@ const Sidebar = () => {
     { id: 'coaches', icon: 'fa-user-tie', label: 'Coaches' },
     { id: 'shop', icon: 'fa-store', label: 'Shop' },
     { id: 'matches', icon: 'fa-trophy', label: 'Matches' },
+    { id: 'orders', icon: 'fa-receipt', label: 'Orders' },
     { id: 'profile', icon: 'fa-user', label: 'Profile' },
   ];
 

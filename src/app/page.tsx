@@ -12,6 +12,7 @@ import Coaches from '@/components/Coaches';
 import Shop from '@/components/Shop';
 import Matches from '@/components/Matches';
 import Profile from '@/components/Profile';
+import Orders from '@/components/Orders';
 
 export default function Home() {
   const { isAuthenticated, activeTab } = useAppContext();
@@ -27,6 +28,7 @@ export default function Home() {
       case 'coaches': return <Coaches />;
       case 'shop': return <Shop />;
       case 'matches': return <Matches />;
+      case 'orders': return <Orders />;
       case 'profile': return <Profile />;
       default: return <Dashboard />;
     }

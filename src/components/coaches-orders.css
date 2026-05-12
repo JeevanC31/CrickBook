@@ -1,0 +1,288 @@
+
+/* ============================================
+   ORDERS PAGE — Premium Redesign
+   ============================================ */
+.orders-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.orders-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+.orders-header h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+}
+.btn-icon-only {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.btn-icon-only:hover { color: var(--primary); border-color: var(--primary); transform: rotate(180deg); }
+
+.orders-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem;
+  gap: 1rem;
+  color: var(--text-muted);
+}
+.orders-spinner {
+  width: 48px; height: 48px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.orders-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  text-align: center;
+  border-radius: 16px;
+}
+.orders-error i { font-size: 3rem; color: #ef4444; }
+
+.orders-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 5rem 2rem;
+  text-align: center;
+  border-radius: 16px;
+}
+.orders-empty-icon { font-size: 4rem; }
+.orders-empty h3 { font-size: 1.4rem; margin: 0; }
+.orders-empty p { color: var(--text-muted); margin: 0; }
+
+.orders-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.order-card {
+  border-radius: 16px;
+  padding: 1.5rem;
+  animation: fadeSlideIn 0.4s ease both;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.order-card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0;
+}
+.order-card-icon {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, var(--primary), #0ea5e9);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+.order-card-title { flex: 1; }
+.order-card-title h4 { margin: 0 0 0.2rem; font-size: 1rem; font-weight: 600; }
+.order-location { font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.order-location i { font-size: 0.7rem; }
+
+.order-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.status-confirmed { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+.status-pending   { background: rgba(234,179,8,0.15);  color: #eab308; border: 1px solid rgba(234,179,8,0.3); }
+
+.order-card-divider {
+  height: 1px;
+  background: var(--border-glass);
+  margin: 1.25rem 0;
+}
+.order-card-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 2rem;
+}
+.order-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.order-detail > i {
+  font-size: 0.9rem;
+  color: var(--primary);
+  margin-top: 2px;
+  width: 16px;
+  text-align: center;
+}
+.order-detail > div {
+  display: flex;
+  flex-direction: column;
+}
+.detail-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.detail-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.detail-id {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--primary);
+  letter-spacing: 1px;
+}
+
+/* ============================================
+   COACHES — Premium Card Grid
+   ============================================ */
+.coaches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+.coach-card {
+  border-radius: 16px;
+  overflow: hidden;
+  transition: transform 0.25s, box-shadow 0.25s;
+  display: flex;
+  flex-direction: column;
+}
+.coach-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+
+.coach-card-img-wrap {
+  position: relative;
+  height: 180px;
+  overflow: hidden;
+}
+.coach-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.coach-rating-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  color: #facc15;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.coach-card-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: 1;
+}
+.coach-card-body h3 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.coach-specialty { color: var(--primary); font-size: 0.8rem; font-weight: 500; margin: 0; }
+.coach-mini-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.coach-mini-stats i { margin-right: 4px; }
+.coach-price-row { display: flex; align-items: baseline; gap: 6px; }
+.coach-price { font-size: 1.3rem; font-weight: 700; }
+
+/* Coach Modal — Stats Panel */
+.coach-stats-panel, .coach-achievements {
+  padding: 1.25rem;
+  border-radius: 12px;
+}
+.stats-panel-title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+  font-weight: 600;
+}
+.stats-panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.stat-box {
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 0.75rem;
+  text-align: center;
+  border: 1px solid var(--border-glass);
+}
+.stat-val { display: block; font-size: 1.25rem; font-weight: 700; color: var(--primary); }
+.stat-lbl { display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+.achievement-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.achievement-list li {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.achievement-list li i { color: #facc15; font-size: 0.75rem; }
+
+.coach-bio {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  border-left: 3px solid var(--primary);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.section-header h2 { font-size: 1.75rem; font-weight: 700; margin: 0 0 4px; }

@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -40,10 +41,22 @@ interface Booking {
   createdAt: string;
 }
 
+interface CoachBooking {
+  id: string;
+  status: string;
+  sessionTime: string;
+  user: { name: string; email: string };
+  coach: { name: string; specialty: string };
+  createdAt: string;
+}
+
 interface Order {
   id: string;
   totalAmount: number;
   status: string;
+  deliveryAddress?: string;
+  discount?: number;
+  couponCode?: string;
   createdAt: string;
   user: { name: string; email: string };
   orderItems: { quantity: number; product: { name: string } }[];
@@ -75,6 +88,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [coachBookings, setCoachBookings] = useState<CoachBooking[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [showProductModal, setShowProductModal] = useState(false);
@@ -124,6 +138,13 @@ export default function AdminPage() {
     setLoading(false);
   }, []);
 
+  const loadCoachBookings = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch('/api/admin/coach-bookings');
+    if (res.ok) setCoachBookings(await res.json());
+    setLoading(false);
+  }, []);
+
   const loadOrders = useCallback(async () => {
     setLoading(true);
     const res = await fetch('/api/admin/orders');
@@ -132,11 +153,14 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (tab === 'overview') loadOverview();
-    else if (tab === 'users') loadUsers();
-    else if (tab === 'products') loadProducts();
-    else if (tab === 'bookings') loadBookings();
-    else if (tab === 'orders') loadOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (tab === 'overview') { loadOverview(); }
+    else if (tab === 'users') { loadUsers(); }
+    else if (tab === 'products') { loadProducts(); }
+    else if (tab === 'bookings') { loadBookings(); }
+    else if (tab === 'coachBookings') { loadCoachBookings(); }
+    else if (tab === 'orders') { loadOrders(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   /* ── Actions ── */
@@ -155,6 +179,11 @@ export default function AdminPage() {
   const updateBookingStatus = async (id: string, status: string) => {
     await fetch('/api/admin/bookings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) });
     setBookings(b => b.map(x => x.id === id ? { ...x, status } : x));
+  };
+
+  const updateCoachBookingStatus = async (id: string, status: string) => {
+    await fetch('/api/admin/coach-bookings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) });
+    setCoachBookings(b => b.map(x => x.id === id ? { ...x, status } : x));
   };
 
   const updateOrderStatus = async (id: string, status: string) => {
@@ -186,6 +215,7 @@ export default function AdminPage() {
     { id: 'overview', icon: 'fa-chart-pie', label: 'Overview' },
     { id: 'users', icon: 'fa-users', label: 'Users' },
     { id: 'bookings', icon: 'fa-calendar-check', label: 'Turf Bookings' },
+    { id: 'coachBookings', icon: 'fa-user-tie', label: 'Coach Bookings' },
     { id: 'products', icon: 'fa-box-open', label: 'Products' },
     { id: 'orders', icon: 'fa-receipt', label: 'Orders' },
   ];
@@ -394,6 +424,46 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* ── COACH BOOKINGS ── */}
+              {tab === 'coachBookings' && (
+                <div className="animate-in">
+                  <div className="ad-section-header"><h2>{coachBookings.length} coach bookings</h2></div>
+                  <div className="ad-table-wrap">
+                    <table className="ad-table">
+                      <thead>
+                        <tr><th>User</th><th>Coach</th><th>Date & Time</th><th>Status</th><th>Actions</th></tr>
+                      </thead>
+                      <tbody>
+                        {coachBookings.length === 0 ? (
+                          <tr><td colSpan={5}><div className="ad-empty"><i className="fa-solid fa-user-slash"></i>No coach bookings yet</div></td></tr>
+                        ) : coachBookings.map(b => (
+                          <tr key={b.id}>
+                            <td><strong>{b.user.name}</strong><div style={{ fontSize: '0.75rem', color: 'var(--ad-muted)' }}>{b.user.email}</div></td>
+                            <td>{b.coach.name}<div style={{ fontSize: '0.75rem', color: 'var(--ad-muted)' }}>{b.coach.specialty}</div></td>
+                            <td style={{ fontSize: '0.8rem', color: 'var(--ad-muted)' }}>
+                              {new Date(b.sessionTime).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td><span className={statusPill(b.status)}>{b.status}</span></td>
+                            <td>
+                              <select
+                                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--ad-border)', color: 'var(--ad-text)', borderRadius: '6px', padding: '0.3rem 0.5rem', fontSize: '0.78rem', cursor: 'pointer' }}
+                                value={b.status}
+                                onChange={e => updateCoachBookingStatus(b.id, e.target.value)}
+                              >
+                                <option>CONFIRMED</option>
+                                <option>PENDING</option>
+                                <option>CANCELLED</option>
+                                <option>COMPLETED</option>
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* ── PRODUCTS ── */}
               {tab === 'products' && (
                 <div className="animate-in">
@@ -412,7 +482,7 @@ export default function AdminPage() {
                         ) : products.map(p => (
                           <tr key={p.id}>
                             <td><strong>{p.name}</strong></td>
-                            <td>{p.category || '—'}</td>
+                            <td><span className="category-tag" style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>{p.category || '—'}</span></td>
                             <td><strong>${p.price.toFixed(2)}</strong></td>
                             <td>
                               <span className={`pill ${p.stock > 10 ? 'pill-green' : p.stock > 0 ? 'pill-yellow' : 'pill-red'}`}>
@@ -437,15 +507,50 @@ export default function AdminPage() {
                   <div className="ad-section-header"><h2>{orders.length} orders</h2></div>
                   <div className="ad-table-wrap">
                     <table className="ad-table">
-                      <thead><tr><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th><th>Update</th></tr></thead>
+                      <thead><tr><th>Customer & Address</th><th>Order Items</th><th>Total (Discount)</th><th>Status</th><th>Date</th><th>Update</th></tr></thead>
                       <tbody>
                         {orders.length === 0 ? (
                           <tr><td colSpan={6}><div className="ad-empty"><i className="fa-solid fa-receipt"></i>No orders yet</div></td></tr>
                         ) : orders.map(o => (
                           <tr key={o.id}>
-                            <td><strong>{o.user.name}</strong><div style={{ fontSize: '0.75rem', color: 'var(--ad-muted)' }}>{o.user.email}</div></td>
-                            <td style={{ fontSize: '0.8rem', color: 'var(--ad-muted)' }}>{o.orderItems.map(i => `${i.product.name} ×${i.quantity}`).join(', ')}</td>
-                            <td><strong>${o.totalAmount.toFixed(2)}</strong></td>
+                            <td>
+                              <strong>{o.user.name}</strong>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--ad-muted)', marginBottom: '4px' }}>{o.user.email}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--ad-text)', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '4px', maxWidth: '180px' }} title={o.deliveryAddress}>
+                                {(() => {
+                                  if (!o.deliveryAddress) return <><i className="fa-solid fa-truck" style={{marginRight: '4px'}}></i> N/A</>;
+                                  try {
+                                    const addr = JSON.parse(o.deliveryAddress);
+                                    return (
+                                      <>
+                                        <div style={{ fontWeight: 'bold', color: '#60a5fa', marginBottom: '2px' }}><i className="fa-solid fa-truck" style={{marginRight: '4px'}}></i> Delivery</div>
+                                        <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{addr.street}</div>
+                                        <div style={{ color: 'var(--ad-muted)' }}>PIN: {addr.pincode} • <i className="fa-solid fa-phone"></i> {addr.phone}</div>
+                                      </>
+                                    );
+                                  } catch (e) {
+                                    return (
+                                      <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        <i className="fa-solid fa-truck" style={{marginRight: '4px'}}></i> {o.deliveryAddress}
+                                      </div>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            </td>
+                            <td style={{ fontSize: '0.8rem', color: 'var(--ad-muted)', maxWidth: '200px' }}>
+                              <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={o.orderItems.map(i => `${i.product.name} ×${i.quantity}`).join(', ')}>
+                                {o.orderItems.map(i => `${i.product.name} ×${i.quantity}`).join(', ')}
+                              </div>
+                            </td>
+                            <td>
+                              <strong>${o.totalAmount.toFixed(2)}</strong>
+                              {o.discount && o.discount > 0 ? (
+                                <div style={{ fontSize: '0.75rem', color: '#34d399', marginTop: '2px' }}>
+                                  -{o.discount}% (Code: {o.couponCode})
+                                </div>
+                              ) : null}
+                            </td>
                             <td><span className={statusPill(o.status)}>{o.status}</span></td>
                             <td style={{ fontSize: '0.8rem', color: 'var(--ad-muted)' }}>{fmt(o.createdAt)}</td>
                             <td>
@@ -456,6 +561,7 @@ export default function AdminPage() {
                               >
                                 <option>PENDING</option>
                                 <option>SHIPPED</option>
+                                <option>OUT_FOR_DELIVERY</option>
                                 <option>DELIVERED</option>
                                 <option>CANCELLED</option>
                               </select>
