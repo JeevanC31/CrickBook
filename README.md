@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CricBook - Modern Cricket Booking Platform
 
-## Getting Started
+CricBook is a full-stack Next.js web application designed to be the ultimate hub for cricket enthusiasts. It provides an intuitive, modern "glassmorphism" user interface for booking turfs, hiring coaches, and buying cricket gear.
 
-First, run the development server:
+## 🚀 Features
 
+- **User Authentication:** Secure signup and login with password validation rules.
+- **Dynamic Dashboard:** Personalized user dashboard tracking upcoming matches, recent activities, and wallet balance.
+- **Turf Bookings:** Browse nearby turfs and book nets by the hour.
+- **Coaching Sessions:** Find specialized cricket coaches (batting, bowling, all-rounder) and book training sessions.
+- **E-Commerce Shop:** Add cricket gear to your cart and place orders instantly.
+- **Match Matchmaking:** Discover local matches and join them based on your role (batsman, bowler, etc.).
+- **Admin Portal:** A dedicated, secure admin dashboard to manage users, track revenue, approve products, and monitor all bookings.
+
+## 🛠️ Technology Stack
+
+- **Frontend:** Next.js (App Router), React, Vanilla CSS (Glassmorphism design)
+- **Backend:** Next.js API Routes (Serverless Functions)
+- **Database:** PostgreSQL
+- **ORM:** Prisma Client with `@prisma/adapter-pg`
+
+---
+
+## 💻 Getting Started
+
+### Prerequisites
+Make sure you have the following installed on your machine:
+- **Node.js** (v18 or higher)
+- **npm** (comes with Node.js)
+- **PostgreSQL** (running locally, or use a cloud provider like Neon.tech/Supabase)
+
+### 1. Installation
+Clone the repository and install the dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Navigate to the project directory
+cd cricbook-next
+
+# Install dependencies
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Environment Setup
+Create a `.env` file in the root of the `cricbook-next` directory and add your PostgreSQL connection string:
+```env
+DATABASE_URL="postgresql://[USER]:[PASSWORD]@[HOST]:[PORT]/[DATABASE_NAME]?schema=public"
+```
+*(Example local URL: `postgresql://postgres:password@localhost:5432/cricbook?schema=public`)*
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Database Initialization
+Push the database schema to your PostgreSQL instance:
+```bash
+npx prisma db push
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Seed the Database (Optional but Recommended)
+Populate the database with sample turfs, coaches, shop items, and the default admin account:
+```bash
+# Seed general application data
+npx ts-node prisma/seed.ts
 
-## Learn More
+# Seed the admin user account
+npx ts-node prisma/seed-admin.ts
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 5. Run the Application
+Start the Next.js development server:
+```bash
+npm run dev
+```
+Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🛡️ Admin Dashboard
+To access the admin dashboard, navigate to `http://localhost:3000/admin`. 
 
-## Deploy on Vercel
+If you ran the admin seed script (`npx ts-node prisma/seed-admin.ts`), you can log in with:
+- **Email:** `admin@cricbook.com`
+- **Password:** `Admin@123`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🧪 Testing
+This project uses Jest and React Testing Library for frontend component testing.
+To run the test suite:
+```bash
+npm test
+```

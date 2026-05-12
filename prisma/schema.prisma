@@ -1,0 +1,147 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  passwordHash   String
+  phone          String?
+  role           Role            @default(USER)
+  age            Int?
+  specialization String?
+  turfBookings   TurfBooking[]
+  coachBookings  CoachBooking[]
+  orders         Order[]
+  matchPlayers   MatchPlayer[]
+  cartItems      CartItem[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Turf {
+  id             String          @id @default(uuid())
+  name           String
+  location       String
+  pricePerHour   Float
+  netsAvailable  Int
+  imageUrl       String?
+  bookings       TurfBooking[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model TurfBooking {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  turf      Turf     @relation(fields: [turfId], references: [id])
+  turfId    String
+  startTime DateTime
+  endTime   DateTime
+  status    String   @default("CONFIRMED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Coach {
+  id               String          @id @default(uuid())
+  name             String
+  specialty        String
+  pricePerSession  Float
+  rating           Float           @default(0.0)
+  imageUrl         String?
+  bookings         CoachBooking[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model CoachBooking {
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  coach       Coach    @relation(fields: [coachId], references: [id])
+  coachId     String
+  sessionTime DateTime
+  status      String   @default("CONFIRMED")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  stock       Int
+  category    String?
+  imageUrl    String?
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  user        User        @relation(fields: [userId], references: [id])
+  userId      String
+  totalAmount Float
+  status      String      @default("PENDING")
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OrderItem {
+  id               String   @id @default(uuid())
+  order            Order    @relation(fields: [orderId], references: [id])
+  orderId          String
+  product          Product  @relation(fields: [productId], references: [id])
+  productId        String
+  quantity         Int
+  priceAtPurchase  Float
+}
+
+model Match {
+  id           String        @id @default(uuid())
+  title        String
+  location     String
+  startTime    DateTime
+  endTime      DateTime
+  status       String        @default("SCHEDULED")
+  players      MatchPlayer[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model MatchPlayer {
+  id       String @id @default(uuid())
+  match    Match  @relation(fields: [matchId], references: [id])
+  matchId  String
+  user     User   @relation(fields: [userId], references: [id])
+  userId   String
+  role     String
+}
