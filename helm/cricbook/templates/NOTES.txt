@@ -74,3 +74,47 @@ Chart    : {{ .Chart.Name }}-{{ .Chart.Version }}
      (required for JWT validation by the SecurityPolicy)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📖 ARCHITECTURAL TOPOLOGY & OPERATION REFERENCES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. KUBERNETES GATEWAY API & ENVOY EDGE INGRESS:
+     * Exposes services in a standard, cloud-native manner.
+     * Uses Envoy Gateway as the controller. When installed, it watches for
+       GatewayClass, Gateway, and HTTPRoute resources to dynamically configure
+       Envoy data-plane pods.
+     * Gateway Class: Registers 'cricbook-envoy' with Envoy's controller.
+     * Gateway: Entry point listening on port 80 routing matching namespace routes.
+     * HTTPRoute: Path-based routing rules. urlRewrite strips prefix matching
+       so e.g. GET /api/auth/login -> GET /login inside the auth container.
+
+  2. ENVOY SIDECAR PROXIES (Optional):
+     * When envoy.enabled=true, each microservice pod runs an Envoy container
+       listening on port 15001 (inbound proxy) forwarding to 127.0.0.1:<appPort>.
+     * Collects statistics, metrics, and manages service mesh topology.
+     * When disabled, the Kubernetes Service targetPort links directly to the
+       app port, cutting local CPU/RAM overhead in half.
+
+  3. CENTRALIZED SECURITY POLICY (JWT Authentication):
+     * An Envoy Gateway custom resource. Intercepts incoming requests on matching
+       HTTPRoutes and validates JWT signatures BEFORE reaching backends.
+     * Decodes the Bearer token, fetches public keys from auth-service's JWKS
+       endpoint, and injects authentication headers into verified requests:
+         X-User-Id   <- value of "sub" claim
+         X-User-Role <- value of "role" claim
+         X-User-Email<- value of "email" claim
+     * Rejects invalid/missing tokens with 401 Unauthorized instantly.
+
+  4. BACKEND TRAFFIC POLICY (Rate Limiting):
+     * Implements local, in-memory rate counters per Envoy Gateway pod.
+     * Protects endpoints from starvation and denial of service:
+       - /api/auth: Tight brute-force protection (e.g. 20 req/min).
+       - /api/*: Standard application route limits (e.g. 100 req/min).
+       - /: Frontend page loads and static assets (e.g. 500 req/min).
+
+  5. STATE RECOVERY & PVC ISOLATION:
+     * Postgres DB is isolated and deployed with a Recreate deployment strategy.
+     * Recreate guarantees the old DB container has terminated and cleanly
+       released PostgreSQL locks (postmaster.pid) before starting new pods.
+     * Microservices include adjusted liveness (90s) and readiness (45s) probe
+       initial delays to prevent liveness kills during Prisma DB schema pushes.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
