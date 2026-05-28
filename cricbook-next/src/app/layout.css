@@ -1,0 +1,10 @@
+.main-content {
+  margin-left: 260px;
+  padding: 2rem;
+  flex-grow: 1;
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .main-content { margin-left: 0; }
+}

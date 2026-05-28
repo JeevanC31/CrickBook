@@ -1,0 +1,51 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js build output
+.next
+out
+
+# Prisma generated client (regenerated inside container)
+src/generated
+
+# Environment files — never bake secrets into the image
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+
+# Editor / IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests & coverage
+coverage
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# TypeScript cache
+*.tsbuildinfo
+.tsbuildinfo
+
+# Misc
+README.md
+*.md
