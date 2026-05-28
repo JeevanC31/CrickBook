@@ -9,23 +9,30 @@
 # Kubernetes namespace to deploy everything into
 namespace: cricbook
 
+# Credentials for pulling private images from registries like AWS ECR
+imagePullSecrets: []
+
 # ─── Global image pull policy ────────────────────────────────────────────────
 image:
   pullPolicy: IfNotPresent   # use locally-built images; change to Always for CI
 
 # ─── PostgreSQL ───────────────────────────────────────────────────────────────
 db:
+  enabled: true             # Set to false to bypass in-cluster DB and use AWS RDS
   image: postgres:16-alpine
   user: postgres
   # CHANGE THIS in production: --set db.password=<real-password>
   password: admin123
   name: postgres
   storage: 1Gi
+  storageClassName: ""      # Set to e.g. "gp3" on AWS EBS
+  externalEndpoint: ""      # Set to AWS RDS endpoint to route traffic directly to AWS
 
 # ─── Ollama (local LLM for chat-service) ─────────────────────────────────────
 ollama:
   image: ollama/ollama:latest
   storage: 4Gi
+  storageClassName: ""      # Set to e.g. "gp3" on AWS EBS
   model: llama3.2:1b
 
 # ─── Envoy Sidecar ───────────────────────────────────────────────────────────

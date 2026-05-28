@@ -1,6 +1,7 @@
 # service.yaml — Kubernetes Services for CricBook
 
 # Infrastructure services
+{{- if .Values.db.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -18,8 +19,8 @@ spec:
     name: postgres
   selector:
     app: db
-
 ---
+{{- end }}
 apiVersion: v1
 kind: Service
 metadata:

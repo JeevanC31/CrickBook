@@ -1,3 +1,4 @@
+{{- if .Values.db.enabled }}
 # PersistentVolumeClaim: pgdata-pvc
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -9,11 +10,15 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  {{- if .Values.db.storageClassName }}
+  storageClassName: {{ .Values.db.storageClassName | quote }}
+  {{- end }}
   resources:
     requests:
       storage: {{ .Values.db.storage }}
-
 ---
+{{- end }}
+
 # PersistentVolumeClaim: ollama-data-pvc
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -25,6 +30,9 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  {{- if .Values.ollama.storageClassName }}
+  storageClassName: {{ .Values.ollama.storageClassName | quote }}
+  {{- end }}
   resources:
     requests:
       storage: {{ .Values.ollama.storage }}
