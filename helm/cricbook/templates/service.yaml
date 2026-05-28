@@ -1,0 +1,113 @@
+# =============================================================================
+# service.yaml  —  Kubernetes Services for CricBook
+#
+# All services are ClusterIP (internal-only).
+# External traffic is handled exclusively by the Kubernetes Gateway (Envoy).
+#
+# When envoy.enabled=true:
+#   targetPort = 15001  →  Envoy sidecar (which forwards to app port)
+# When envoy.enabled=false:
+#   targetPort = app port  →  app container directly
+# =============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Infrastructure services (no Envoy sidecar)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" . | nindent 4 }}
+    app: db
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: db
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" . | nindent 4 }}
+    app: ollama
+spec:
+  type: ClusterIP
+  ports:
+  - port: 11434
+    targetPort: 11434
+    protocol: TCP
+    name: ollama-api
+  selector:
+    app: ollama
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# Microservice Services (generated via range loop)
+#
+# NOTE on targetPort:
+#   When Envoy sidecar is enabled, the K8s Service sends traffic to :15001
+#   (the Envoy sidecar port).  Envoy then forwards it to 127.0.0.1:<appPort>.
+#   The named port on the Service still uses the app port number so that
+#   HTTPRoute backendRefs can reference it by the familiar port (e.g. 4001).
+# ─────────────────────────────────────────────────────────────────────────────
+{{- range .Values.microservices }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" $ | nindent 4 }}
+    app: {{ .name }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .port }}
+    {{- if $.Values.envoy.enabled }}
+    targetPort: 15001      # → Envoy sidecar, which proxies to app :{{ .port }}
+    {{- else }}
+    targetPort: {{ .port }} # → app container directly (sidecar disabled)
+    {{- end }}
+    protocol: TCP
+    name: http
+  selector:
+    app: {{ .name }}
+{{- end }}
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# Frontend Service
+# ClusterIP only — Gateway routes /* traffic here; no LoadBalancer needed.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" . | nindent 4 }}
+    app: frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.frontend.port }}
+    {{- if .Values.envoy.enabled }}
+    targetPort: 15001
+    {{- else }}
+    targetPort: {{ .Values.frontend.port }}
+    {{- end }}
+    protocol: TCP
+    name: http
+  selector:
+    app: frontend

@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cricbook-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" . | nindent 4 }}
+data:
+  NODE_ENV: "production"
+
+  AUTH_PORT:  "4001"
+  TURF_PORT:  "4002"
+  COACH_PORT: "4003"
+  MATCH_PORT: "4004"
+  SHOP_PORT:  "4005"
+  CHAT_PORT:  "4006"
+  ADMIN_PORT: "4007"
+  FRONTEND_PORT: "3000"
+
+  # ── Internal service base URLs (used by frontend and service-to-service) ──
+  AUTH_API_URL:    "http://auth-service:4001"
+  TURF_API_URL:    "http://turf-service:4002"
+  COACH_API_URL:   "http://coach-service:4003"
+  MATCH_API_URL:   "http://match-service:4004"
+  SHOP_API_URL:    "http://shop-service:4005"
+  CHAT_API_URL:    "http://chat-service:4006"
+  ADMIN_API_URL:   "http://admin-service:4007"
+
+  OLLAMA_HOST: "http://ollama:11434"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cricbook-envoy-configs
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" . | nindent 4 }}
+data:
+{{- range .Values.microservices }}
+  # Envoy sidecar config for {{ .name }} (app listens on {{ .port }})
+  {{ .name }}-envoy.yaml: |
+    {{- include "cricbook.envoyConfig" (dict "port" .port) | nindent 4 }}
+{{- end }}
+  # Envoy sidecar config for frontend (app listens on {{ .Values.frontend.port }})
+  frontend-envoy.yaml: |
+    {{- include "cricbook.envoyConfig" (dict "port" .Values.frontend.port) | nindent 4 }}

@@ -1,0 +1,291 @@
+# =============================================================================
+# deployment.yaml  —  All Kubernetes Deployments for CricBook
+#
+# Structure:
+#   1. PostgreSQL (db)              — no Envoy sidecar (not an HTTP service)
+#   2. Ollama (LLM)                 — no Envoy sidecar (binary protocol)
+#   3. Microservices (7 services)   — WITH Envoy sidecar if envoy.enabled=true
+#   4. Frontend (Next.js)           — WITH Envoy sidecar if envoy.enabled=true
+#
+# Envoy sidecar traffic flow (per microservice pod):
+#   K8s Service [:400x] → pod targetPort :15001 (Envoy)
+#                        → 127.0.0.1:<appPort> (app container)
+# =============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. PostgreSQL Database
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" . | nindent 4 }}
+    app: db
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+      - name: postgres
+        image: {{ .Values.db.image }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        # Credentials come from the Secret — no plaintext passwords here
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: cricbook-db-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cricbook-db-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: cricbook-db-secret
+              key: POSTGRES_DB
+        ports:
+        - containerPort: 5432
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "postgres"]
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+        livenessProbe:
+          exec:
+            command: ["pg_isready", "-U", "postgres"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: pgdata
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: pgdata
+        persistentVolumeClaim:
+          claimName: pgdata-pvc
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Ollama  (local LLM server — used by chat-service)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" . | nindent 4 }}
+    app: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+      - name: ollama
+        image: {{ .Values.ollama.image }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 11434
+        volumeMounts:
+        - name: ollama-data
+          mountPath: /root/.ollama
+      volumes:
+      - name: ollama-data
+        persistentVolumeClaim:
+          claimName: ollama-data-pvc
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. Microservices  (one Deployment per service, generated via range loop)
+#
+# Each pod contains TWO containers:
+#   [app]          — the Node.js microservice
+#   [envoy-proxy]  — the Envoy sidecar (when envoy.enabled=true)
+#
+# The Envoy sidecar config is mounted from ConfigMap cricbook-envoy-configs,
+# using the service-specific key (e.g. auth-service-envoy.yaml) via subPath.
+# ─────────────────────────────────────────────────────────────────────────────
+{{- range .Values.microservices }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" $ | nindent 4 }}
+    app: {{ .name }}
+    version: "1.0.0"
+  annotations:
+    cricbook/envoy-sidecar: {{ $.Values.envoy.enabled | quote }}
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels:
+      app: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .name }}
+      annotations:
+        # Forces pod restart when envoy ConfigMap changes
+        checksum/envoy-config: {{ include "cricbook.envoyConfig" (dict "port" .port) | sha256sum }}
+    spec:
+      containers:
+      # ── App container ────────────────────────────────────────────────────
+      - name: {{ .name }}
+        image: {{ .image }}
+        imagePullPolicy: {{ $.Values.image.pullPolicy }}
+        env:
+        # DATABASE_URL comes from Secret (no plaintext creds in manifests)
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: cricbook-db-secret
+              key: DATABASE_URL
+        # PORT comes from ConfigMap
+        - name: PORT
+          value: {{ .port | quote }}
+        # JWT_SECRET available to services that need to verify tokens
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cricbook-app-secret
+              key: JWT_SECRET
+        # NODE_ENV from ConfigMap
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: cricbook-config
+              key: NODE_ENV
+        # Extra env vars per-service (e.g. OLLAMA_HOST for chat-service)
+        {{- if .extraEnv }}
+        {{- toYaml .extraEnv | nindent 8 }}
+        {{- end }}
+        ports:
+        - name: http-app
+          containerPort: {{ .port }}
+          protocol: TCP
+        readinessProbe:
+          tcpSocket:
+            port: {{ .port }}
+          initialDelaySeconds: 45
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: {{ .port }}
+          initialDelaySeconds: 90
+          periodSeconds: 15
+
+      # ── Envoy sidecar container ─────────────────────────────────────────
+      {{- if $.Values.envoy.enabled }}
+      {{- include "cricbook.envoySidecar" (dict "svcName" .name "Values" $.Values) | nindent 6 }}
+      {{- end }}
+
+      # ── Volumes ─────────────────────────────────────────────────────────
+      {{- if $.Values.envoy.enabled }}
+      volumes:
+      {{- include "cricbook.envoyVolume" .name | nindent 6 }}
+      {{- end }}
+{{- end }}
+
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Frontend  (Next.js)
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "cricbook.labels" . | nindent 4 }}
+    app: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      # ── Next.js app ──────────────────────────────────────────────────────
+      - name: frontend
+        image: {{ .Values.frontend.image }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: cricbook-config
+              key: NODE_ENV
+        # Server-side API URLs (pod-to-pod, not exposed to browser)
+        - name: AUTH_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cricbook-config
+              key: AUTH_API_URL
+        - name: TURF_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cricbook-config
+              key: TURF_API_URL
+        - name: COACH_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cricbook-config
+              key: COACH_API_URL
+        - name: MATCH_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cricbook-config
+              key: MATCH_API_URL
+        - name: SHOP_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cricbook-config
+              key: SHOP_API_URL
+        ports:
+        - name: http-app
+          containerPort: {{ .Values.frontend.port }}
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.frontend.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 10
+
+      # ── Envoy sidecar ────────────────────────────────────────────────────
+      {{- if .Values.envoy.enabled }}
+      {{- include "cricbook.envoySidecar" (dict "svcName" "frontend" "Values" .Values) | nindent 6 }}
+      {{- end }}
+
+      # ── Volumes ──────────────────────────────────────────────────────────
+      {{- if .Values.envoy.enabled }}
+      volumes:
+      {{- include "cricbook.envoyVolume" "frontend" | nindent 6 }}
+      {{- end }}

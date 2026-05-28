@@ -1,0 +1,160 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CricBook Helm values
+# Override sensitive values before deploying to production:
+#   helm install cricbook ./helm/cricbook \
+#     --set db.password=<real-password> \
+#     --set secrets.jwtSecret=<real-jwt-secret>
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Kubernetes namespace to deploy everything into
+namespace: cricbook
+
+# ─── Global image pull policy ────────────────────────────────────────────────
+image:
+  pullPolicy: IfNotPresent   # use locally-built images; change to Always for CI
+
+# ─── PostgreSQL ───────────────────────────────────────────────────────────────
+db:
+  image: postgres:16-alpine
+  user: postgres
+  # CHANGE THIS in production: --set db.password=<real-password>
+  password: admin123
+  name: postgres
+  storage: 1Gi
+
+# ─── Ollama (local LLM for chat-service) ─────────────────────────────────────
+ollama:
+  image: ollama/ollama:latest
+  storage: 4Gi
+  model: llama3.2:1b
+
+# ─── Envoy Sidecar ───────────────────────────────────────────────────────────
+# Each microservice pod gets an Envoy sidecar that:
+#   - Listens on :15001 (inbound proxy port)
+#   - Forwards requests to the app container at 127.0.0.1:<appPort>
+#   - Exposes Prometheus-compatible metrics on :9901/stats
+# Set enabled: false to disable sidecars (traffic goes directly to app port).
+envoy:
+  image: envoyproxy/envoy:v1.29-latest
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ─── Microservices ───────────────────────────────────────────────────────────
+# Each entry generates: Deployment + ClusterIP Service + Envoy sidecar ConfigMap
+microservices:
+  - name: auth-service
+    image: projec1-auth-service:latest
+    port: 4001
+    replicas: 1
+    extraEnv: []
+
+  - name: turf-service
+    image: projec1-turf-service:latest
+    port: 4002
+    replicas: 1
+    extraEnv: []
+
+  - name: coach-service
+    image: projec1-coach-service:latest
+    port: 4003
+    replicas: 1
+    extraEnv: []
+
+  - name: match-service
+    image: projec1-match-service:latest
+    port: 4004
+    replicas: 1
+    extraEnv: []
+
+  - name: shop-service
+    image: projec1-shop-service:latest
+    port: 4005
+    replicas: 1
+    extraEnv: []
+
+  - name: chat-service
+    image: projec1-chat-service:latest
+    port: 4006
+    replicas: 1
+    # chat-service also needs the Ollama URL from ConfigMap
+    extraEnv:
+      - name: OLLAMA_HOST
+        valueFrom:
+          configMapKeyRef:
+            name: cricbook-config
+            key: OLLAMA_HOST
+
+  - name: admin-service
+    image: projec1-admin-service:latest
+    port: 4007
+    replicas: 1
+    extraEnv: []
+
+# ─── Frontend (Next.js) ───────────────────────────────────────────────────────
+frontend:
+  image: projec1-frontend:latest
+  port: 3000
+  replicas: 1
+
+# ─── Kubernetes Gateway API ───────────────────────────────────────────────────
+# Requires Envoy Gateway CRDs installed in the cluster first.
+# See NOTES.txt after install for prerequisite commands.
+gateway:
+  enabled: true
+  # Must match the GatewayClass name registered by Envoy Gateway controller
+  className: cricbook-envoy
+  port: 80
+
+# ─── JWT Authentication (SecurityPolicy) ─────────────────────────────────────
+# Applied to all /api/* routes EXCEPT /api/auth (login & register are public).
+#
+# HOW IT WORKS:
+#   1. Browser/client sends a request with "Authorization: Bearer <jwt>" header.
+#   2. Envoy Gateway intercepts the request and calls the JWKS URI to get
+#      the public keys that verify the JWT signature.
+#   3. If the JWT is valid, the request is forwarded to the backend service
+#      with two extra headers injected by the gateway:
+#         X-User-Id:   (the "sub" claim from the JWT)
+#         X-User-Role: (the "role" claim from the JWT)
+#   4. If the JWT is missing or invalid, Envoy returns 401 Unauthorized.
+#
+# REQUIRES: your auth-service must expose GET /.well-known/jwks.json
+jwt:
+  enabled: true
+  issuer: "http://auth-service.cricbook.svc.cluster.local:4001"
+  jwksUri: "http://auth-service.cricbook.svc.cluster.local:4001/.well-known/jwks.json"
+
+# ─── Rate Limiting (BackendTrafficPolicy) ────────────────────────────────────
+# Uses LOCAL rate limiting (no external rate-limit server needed).
+#
+# HOW IT WORKS:
+#   Each Envoy Gateway pod keeps an in-memory counter per route.
+#   When a client exceeds the limit, Envoy returns 429 Too Many Requests.
+#
+# Limits:
+#   auth:     20 req/min  — prevents brute-force login attacks
+#   api:     100 req/min  — per route (turf, coach, match, shop, chat, admin)
+#   frontend: 500 req/min — browser page loads
+rateLimit:
+  enabled: true
+  auth:
+    requestsPerUnit: 20
+    unit: Minute
+  api:
+    requestsPerUnit: 100
+    unit: Minute
+  frontend:
+    requestsPerUnit: 500
+    unit: Minute
+
+# ─── Secrets (stored as Kubernetes Secrets, base64-encoded) ──────────────────
+# CHANGE THESE before going to production!
+secrets:
+  jwtSecret: "your-super-secret-jwt-key-change-me-in-production"
+  internalApiKey: "change-me-internal-api-key"

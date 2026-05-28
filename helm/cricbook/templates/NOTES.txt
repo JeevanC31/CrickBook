@@ -1,0 +1,76 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║              CricBook has been deployed successfully!                    ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Release : {{ .Release.Name }}
+Namespace: {{ .Values.namespace }}
+Chart    : {{ .Chart.Name }}-{{ .Chart.Version }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 1 — PREREQUISITES  (run once, before first install)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Install the Kubernetes Gateway API CRDs:
+    kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+
+  Install Envoy Gateway (the engine that runs the gateway):
+    helm install eg oci://docker.io/envoyproxy/gateway-helm \
+      --version v1.3.2 \
+      --namespace envoy-gateway-system \
+      --create-namespace
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 2 — CHECK PODS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    kubectl get pods -n {{ .Values.namespace }}
+
+  Each microservice pod should show 2/2 READY (app + envoy-proxy sidecar).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 3 — GET THE GATEWAY IP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    kubectl get gateway cricbook-gateway -n {{ .Values.namespace }}
+
+  Wait for PROGRAMMED=True and note the external ADDRESS.
+  (On local clusters like minikube: run `minikube tunnel` first)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 4 — TEST ROUTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Replace <GATEWAY_IP> with the address from Step 3
+  export GW=<GATEWAY_IP>
+
+  # Public routes (no JWT needed)
+  curl http://$GW/api/auth/health
+  curl http://$GW/
+
+  # Protected routes (need JWT — will return 401 without token)
+  curl http://$GW/api/turf/
+  curl -H "Authorization: Bearer <your-jwt>" http://$GW/api/turf/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ENVOY SIDECAR METRICS (per pod)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  kubectl port-forward -n {{ .Values.namespace }} \
+    deploy/auth-service 9901:9901
+
+  Then open: http://localhost:9901/stats
+  (Prometheus metrics: http://localhost:9901/stats/prometheus)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PRODUCTION CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ⚠  Override secrets before going live:
+    helm upgrade {{ .Release.Name }} ./helm/cricbook \
+      --set db.password=<real-password> \
+      --set secrets.jwtSecret=<64-char-random-string>
+
+  ⚠  Ensure auth-service exposes GET /.well-known/jwks.json
+     (required for JWT validation by the SecurityPolicy)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

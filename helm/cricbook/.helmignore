@@ -1,0 +1,7 @@
+# Patterns to ignore when building Helm package
+.DS_Store
+*.swp
+*.tmp
+.git/
+.gitignore
+README.md
