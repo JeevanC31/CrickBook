@@ -1,7 +1,4 @@
-# ─────────────────────────────────────────────────────────────────────────────
 # PersistentVolumeClaim: pgdata-pvc
-#   Stores PostgreSQL data so the database survives pod restarts.
-# ─────────────────────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -17,11 +14,7 @@ spec:
       storage: {{ .Values.db.storage }}
 
 ---
-# ─────────────────────────────────────────────────────────────────────────────
 # PersistentVolumeClaim: ollama-data-pvc
-#   Stores downloaded Ollama model weights (~4 Gi for llama3.2:1b).
-#   Without this PVC the model is re-downloaded every time the pod restarts.
-# ─────────────────────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

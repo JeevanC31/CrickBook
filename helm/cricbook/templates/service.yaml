@@ -1,18 +1,6 @@
-# =============================================================================
-# service.yaml  —  Kubernetes Services for CricBook
-#
-# All services are ClusterIP (internal-only).
-# External traffic is handled exclusively by the Kubernetes Gateway (Envoy).
-#
-# When envoy.enabled=true:
-#   targetPort = 15001  →  Envoy sidecar (which forwards to app port)
-# When envoy.enabled=false:
-#   targetPort = app port  →  app container directly
-# =============================================================================
+# service.yaml — Kubernetes Services for CricBook
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Infrastructure services (no Envoy sidecar)
-# ─────────────────────────────────────────────────────────────────────────────
+# Infrastructure services
 apiVersion: v1
 kind: Service
 metadata:
@@ -51,15 +39,7 @@ spec:
     app: ollama
 
 ---
-# ─────────────────────────────────────────────────────────────────────────────
-# Microservice Services (generated via range loop)
-#
-# NOTE on targetPort:
-#   When Envoy sidecar is enabled, the K8s Service sends traffic to :15001
-#   (the Envoy sidecar port).  Envoy then forwards it to 127.0.0.1:<appPort>.
-#   The named port on the Service still uses the app port number so that
-#   HTTPRoute backendRefs can reference it by the familiar port (e.g. 4001).
-# ─────────────────────────────────────────────────────────────────────────────
+# Microservice Services
 {{- range .Values.microservices }}
 ---
 apiVersion: v1
@@ -86,10 +66,7 @@ spec:
 {{- end }}
 
 ---
-# ─────────────────────────────────────────────────────────────────────────────
 # Frontend Service
-# ClusterIP only — Gateway routes /* traffic here; no LoadBalancer needed.
-# ─────────────────────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: Service
 metadata:

@@ -1,20 +1,5 @@
-# =============================================================================
-# deployment.yaml  —  All Kubernetes Deployments for CricBook
-#
-# Structure:
-#   1. PostgreSQL (db)              — no Envoy sidecar (not an HTTP service)
-#   2. Ollama (LLM)                 — no Envoy sidecar (binary protocol)
-#   3. Microservices (7 services)   — WITH Envoy sidecar if envoy.enabled=true
-#   4. Frontend (Next.js)           — WITH Envoy sidecar if envoy.enabled=true
-#
-# Envoy sidecar traffic flow (per microservice pod):
-#   K8s Service [:400x] → pod targetPort :15001 (Envoy)
-#                        → 127.0.0.1:<appPort> (app container)
-# =============================================================================
 
-# ─────────────────────────────────────────────────────────────────────────────
 # 1. PostgreSQL Database
-# ─────────────────────────────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -79,9 +64,7 @@ spec:
           claimName: pgdata-pvc
 
 ---
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. Ollama  (local LLM server — used by chat-service)
-# ─────────────────────────────────────────────────────────────────────────────
+# 2. Ollama
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -115,16 +98,7 @@ spec:
           claimName: ollama-data-pvc
 
 ---
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. Microservices  (one Deployment per service, generated via range loop)
-#
-# Each pod contains TWO containers:
-#   [app]          — the Node.js microservice
-#   [envoy-proxy]  — the Envoy sidecar (when envoy.enabled=true)
-#
-# The Envoy sidecar config is mounted from ConfigMap cricbook-envoy-configs,
-# using the service-specific key (e.g. auth-service-envoy.yaml) via subPath.
-# ─────────────────────────────────────────────────────────────────────────────
+# 3. Microservices
 {{- range .Values.microservices }}
 ---
 apiVersion: apps/v1
@@ -210,9 +184,7 @@ spec:
 {{- end }}
 
 ---
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. Frontend  (Next.js)
-# ─────────────────────────────────────────────────────────────────────────────
+# 4. Frontend
 apiVersion: apps/v1
 kind: Deployment
 metadata:

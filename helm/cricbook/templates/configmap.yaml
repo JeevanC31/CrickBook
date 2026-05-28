@@ -38,10 +38,10 @@ metadata:
     {{- include "cricbook.labels" . | nindent 4 }}
 data:
 {{- range .Values.microservices }}
-  # Envoy sidecar config for {{ .name }} (app listens on {{ .port }})
+
   {{ .name }}-envoy.yaml: |
     {{- include "cricbook.envoyConfig" (dict "port" .port) | nindent 4 }}
 {{- end }}
-  # Envoy sidecar config for frontend (app listens on {{ .Values.frontend.port }})
+
   frontend-envoy.yaml: |
     {{- include "cricbook.envoyConfig" (dict "port" .Values.frontend.port) | nindent 4 }}

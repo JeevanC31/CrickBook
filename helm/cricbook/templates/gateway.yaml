@@ -1,37 +1,7 @@
 {{- if .Values.gateway.enabled }}
-# =============================================================================
-# gateway.yaml  —  Kubernetes Gateway API resources for CricBook
-#
-# WHAT IS THE KUBERNETES GATEWAY API?
-#   It's the modern, standard way to expose services in Kubernetes.
-#   Think of it like a smart traffic cop sitting in front of all your services.
-#   Instead of one LoadBalancer per service (expensive), you get ONE gateway
-#   that routes traffic to the right service based on the URL path.
-#
-# WHAT IS ENVOY GATEWAY?
-#   Envoy Gateway is the software that RUNS the gateway. It uses Envoy Proxy
-#   (the same proxy used by Istio, Lyft, etc.) as its data plane. When you
-#   install Envoy Gateway in your cluster, it watches for GatewayClass/Gateway/
-#   HTTPRoute resources and automatically configures Envoy pods to handle them.
-#
-# RESOURCE HIERARCHY:
-#   GatewayClass  →  "use Envoy Gateway as the gateway engine"
-#       │
-#   Gateway       →  "listen on port 80, allow routes from this namespace"
-#       │
-#   HTTPRoute     →  "requests to /api/auth/* go to auth-service:4001"
-#       │
-#   SecurityPolicy →  "require valid JWT on /api/turf, /api/coach, etc."
-#       │
-#   BackendTrafficPolicy → "allow max N requests per minute per route"
-# =============================================================================
+# gateway.yaml — Kubernetes Gateway API resources for CricBook
 
-# ─────────────────────────────────────────────────────────────────────────────
 # GatewayClass
-# Tells Kubernetes: "When a Gateway says className: cricbook-envoy, use the
-# Envoy Gateway controller to manage it."
-# Envoy Gateway registers itself with the controller name below when installed.
-# ─────────────────────────────────────────────────────────────────────────────
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
 metadata:
@@ -43,11 +13,6 @@ spec:
   description: "CricBook gateway — powered by Envoy Proxy"
 
 ---
-# ─────────────────────────────────────────────────────────────────────────────
-# Gateway
-# The actual entry point. Creates a LoadBalancer Service (managed by Envoy
-# Gateway) that gets a public IP. All CricBook traffic enters here on port 80.
-# ─────────────────────────────────────────────────────────────────────────────
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -66,18 +31,6 @@ spec:
         from: Same   # only HTTPRoutes in the cricbook namespace are accepted
 
 ---
-# =============================================================================
-# HTTPRoutes  —  Path-based routing rules
-#
-# Each HTTPRoute says: "requests matching this path prefix go to this service".
-# More-specific paths win over less-specific ones (Gateway API spec guarantee).
-#
-# URL rewriting: each route strips its path prefix before forwarding.
-# Example: GET /api/auth/login  →  auth-service receives GET /login
-# This lets each microservice keep routes starting at "/" without knowing
-# about the /api/<name> prefix the gateway adds.
-# =============================================================================
-
 # ── /api/auth  (PUBLIC — no JWT required, this is where you GET the JWT) ──
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -299,31 +252,6 @@ spec:
       port: {{ .Values.frontend.port }}
 
 ---
-# =============================================================================
-# SecurityPolicy  —  JWT Authentication
-#
-# WHAT IS IT?
-#   A SecurityPolicy is an Envoy Gateway custom resource. It attaches to one
-#   or more HTTPRoutes and tells Envoy to validate JWT tokens BEFORE forwarding
-#   the request to your service.
-#
-# HOW JWT AUTH WORKS HERE:
-#   1. Client logs in via POST /api/auth/login  →  auth-service returns a JWT.
-#   2. Client includes the JWT in subsequent requests:
-#        Authorization: Bearer <token>
-#   3. Envoy Gateway intercepts the request, fetches the public key from
-#      auth-service's JWKS endpoint, and verifies the token signature.
-#   4a. Valid token  →  request forwarded; two headers are injected:
-#          X-User-Id:   value of "sub" claim (user ID)
-#          X-User-Role: value of "role" claim (admin / user / coach etc.)
-#   4b. Invalid / missing token  →  Envoy returns 401 Unauthorized immediately.
-#       Your backend services never even see the bad request.
-#
-# ROUTES PROTECTED: turf, coach, match, shop, chat, admin
-# ROUTES EXCLUDED:  auth (login/register), frontend (HTML pages)
-#
-# PREREQUISITE: auth-service must expose GET /.well-known/jwks.json
-# =============================================================================
 {{- if .Values.jwt.enabled }}
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: SecurityPolicy
@@ -373,32 +301,6 @@ spec:
 {{- end }}
 
 ---
-# =============================================================================
-# BackendTrafficPolicy  —  Rate Limiting
-#
-# WHAT IS IT?
-#   A BackendTrafficPolicy is another Envoy Gateway custom resource.
-#   It controls how much traffic is allowed to reach each route.
-#
-# HOW LOCAL RATE LIMITING WORKS:
-#   "Local" means each Envoy pod tracks its own counter — no external server
-#   needed. When a client sends too many requests:
-#     → Envoy returns 429 Too Many Requests
-#     → The backend service is never hit
-#     → The counter resets every minute (configurable)
-#
-# LIMITS SET:
-#   /api/auth   → {{ .Values.rateLimit.auth.requestsPerUnit }} req/{{ .Values.rateLimit.auth.unit }}
-#     Reason: Brute-force protection. Attackers trying thousands of
-#             password guesses will hit the wall quickly.
-#
-#   /api/turf, /api/coach, /api/match, /api/shop, /api/chat, /api/admin
-#             → {{ .Values.rateLimit.api.requestsPerUnit }} req/{{ .Values.rateLimit.api.unit }} each
-#     Reason: Reasonable API limit for normal users. Adjust in values.yaml.
-#
-#   /           → {{ .Values.rateLimit.frontend.requestsPerUnit }} req/{{ .Values.rateLimit.frontend.unit }}
-#     Reason: Higher limit for page loads and static assets.
-# =============================================================================
 {{- if .Values.rateLimit.enabled }}
 
 # Auth route — tight limit (brute-force protection)
