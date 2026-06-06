@@ -22,46 +22,48 @@ spec:
     spec:
       containers:
       - name: postgres
-      	image: {{ .Values.db.image }}
-      	imagePullPolicy: {{ .Values.image.pullPolicy }}
-      	env:
-      	# Credentials come from the Secret — no plaintext passwords here
-      	- name: POSTGRES_USER
-      	  valueFrom:
-      	    secretKeyRef:
-      	      name: cricbook-db-secret
-      	      key: POSTGRES_USER
-      	- name: POSTGRES_PASSWORD
-      	  valueFrom:
-      	    secretKeyRef:
-      	      name: cricbook-db-secret
-      	      key: POSTGRES_PASSWORD
-      	- name: POSTGRES_DB
-      	  valueFrom:
-      	    secretKeyRef:
-      	      name: cricbook-db-secret
-      	      key: POSTGRES_DB
-      	ports:
-      	- containerPort: 5432
-      	readinessProbe:
-      	  exec:
-      	    command: ["pg_isready", "-U", "postgres"]
-      	  initialDelaySeconds: 10
-      	  periodSeconds: 5
-      	  timeoutSeconds: 5
-      	livenessProbe:
-      	  exec:
-      	    command: ["pg_isready", "-U", "postgres"]
-      	  initialDelaySeconds: 30
-      	  periodSeconds: 10
-      	  timeoutSeconds: 5
-      	volumeMounts:
-      	- name: pgdata
-      	  mountPath: /var/lib/postgresql/data
+        image: {{ .Values.db.image }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        # Credentials come from the Secret — no plaintext passwords here
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: cricbook-db-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cricbook-db-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: cricbook-db-secret
+              key: POSTGRES_DB
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - containerPort: 5432
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "postgres"]
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+        livenessProbe:
+          exec:
+            command: ["pg_isready", "-U", "postgres"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: pgdata
+          mountPath: /var/lib/postgresql/data
       volumes:
       - name: pgdata
-      	persistentVolumeClaim:
-      	  claimName: pgdata-pvc
+        persistentVolumeClaim:
+          claimName: pgdata-pvc
 ---
 {{- end }}
 # 2. Ollama
