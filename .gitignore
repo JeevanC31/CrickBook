@@ -34,3 +34,8 @@ helm/cricbook/tmpcharts/
 *.sw?
 .DS_Store
 Thumbs.db
+
+# Exclusions
+terraform/
+architecture/
+*.exe
