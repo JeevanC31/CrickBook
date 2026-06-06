@@ -99,3 +99,48 @@ Run the following local proxy command to start the Rollouts visual interface:
 Get the LoadBalancer DNS name of the Envoy Gateway:
 $appUrl = kubectl get svc -n envoy-gateway-system -l gateway.networking.k8s.io/gateway-name=cricbook-gateway -o jsonpath="{.items[0].status.loadBalancer.ingress[0].hostname}"
 Write-Output "Access application here: http://$appUrl"
+
+---
+
+## Modifying & Pushing Code Changes (CI/CD GitOps Flow)
+
+If you modify application source files (e.g. `cricbook-next/src/components/Dashboard.tsx`) and want to deploy those updates to the cluster:
+
+1. **Commit and Push Code Changes to GitHub**:
+   ```powershell
+   git add cricbook-next/src/components/Dashboard.tsx
+   git commit -m "Update Dashboard UI components"
+   git push origin main
+   ```
+   *Note: `/terraform` and `/architecture` folders are ignored automatically by `.gitignore`.*
+
+2. **Authenticate with AWS ECR Registry**:
+   ```powershell
+   aws ecr get-login-password --region ap-south-2 | docker login --username AWS --password-stdin 409823419470.dkr.ecr.ap-south-2.amazonaws.com
+   ```
+
+3. **Build the New Container Image**:
+   ```powershell
+   docker build -t cricbook/frontend:latest ./cricbook-next
+   ```
+
+4. **Tag & Push the Image to AWS ECR**:
+   ```powershell
+   docker tag cricbook/frontend:latest 409823419470.dkr.ecr.ap-south-2.amazonaws.com/cricbook/frontend:latest
+   docker push 409823419470.dkr.ecr.ap-south-2.amazonaws.com/cricbook/frontend:latest
+   ```
+
+5. **Deploy changes to cluster (The GitOps Way)**:
+   Whenever you push a change to ECR with a `:latest` tag, you can update the version field in `helm/cricbook/values.yaml` (e.g., changing `version: "1.0.3"` to `"1.0.4"`) and push to Git. ArgoCD will automatically detect the specification change and roll out the new container pulling the fresh ECR image:
+   ```powershell
+   # In values.yaml, update the version tag under frontend, then commit:
+   git add helm/cricbook/values.yaml
+   git commit -m "Bump frontend deployment version tag to trigger sync"
+   git push origin main
+   ```
+
+6. **Deploy changes to cluster (The CLI Sync Way)**:
+   If you do not want to change the version tag in git, you can force EKS to roll out restart and fetch the new ECR image using:
+   ```powershell
+   kubectl rollout restart deployment frontend -n cricbook
+   ```
