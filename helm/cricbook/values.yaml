@@ -92,6 +92,7 @@ frontend:
   image: 409823419470.dkr.ecr.ap-south-2.amazonaws.com/cricbook/frontend:latest
   port: 3000
   replicas: 1
+  version: "1.0.3"
 
 gateway:
   enabled: true

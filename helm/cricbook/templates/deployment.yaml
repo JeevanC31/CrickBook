@@ -208,6 +208,8 @@ spec:
     metadata:
       labels:
         app: frontend
+      annotations:
+        cricbook.version: {{ .Values.frontend.version | default "latest" | quote }}
     spec:
       {{- if .Values.imagePullSecrets }}
       imagePullSecrets:
