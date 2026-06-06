@@ -10,6 +10,7 @@ const Dashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletAmount, setWalletAmount] = useState('');
   const [walletAction, setWalletAction] = useState<'add'|'withdraw'>('add');
+  const [activities, setActivities] = useState<any[]>([]);
 
   const firstName = user?.name?.split(' ')[0] || 'Player';
 
@@ -20,6 +21,18 @@ const Dashboard = () => {
         .then(data => {
           if (data.walletBalance !== undefined && data.walletBalance !== user.walletBalance) {
             updateUser({ walletBalance: data.walletBalance });
+          }
+        })
+        .catch(console.error);
+
+      fetch(`/api/users/${user.id}/orders`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            const sorted = data
+              .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 5);
+            setActivities(sorted);
           }
         })
         .catch(console.error);
@@ -89,20 +102,54 @@ const Dashboard = () => {
         <div className="card glass recent-activity">
           <h3>Recent Activity</h3>
           <ul className="activity-list">
-            <li>
-              <div className="activity-icon bg-green"><i className="fa-solid fa-check"></i></div>
-              <div className="activity-text">
-                <strong>Booked Turf:</strong> Central Park Nets
-                <span>2 hours ago</span>
-              </div>
-            </li>
-            <li>
-              <div className="activity-icon bg-blue"><i className="fa-solid fa-cart-shopping"></i></div>
-              <div className="activity-text">
-                <strong>Purchased:</strong> SG Cricket Bat
-                <span>Yesterday</span>
-              </div>
-            </li>
+            {activities.length === 0 ? (
+              <li style={{ border: 'none', padding: '1rem 0', color: 'var(--text-muted)' }}>
+                No recent activity found. Make some bookings or orders!
+              </li>
+            ) : (
+              activities.map((act) => {
+                let iconClass = 'fa-check';
+                let bgStyle = { backgroundColor: 'rgba(16, 185, 129, 0.2)', color: 'var(--primary)' };
+                let actionTitle = act.category;
+
+                if (act.category === 'Coach') {
+                  iconClass = 'fa-user-tie';
+                  bgStyle = { backgroundColor: 'rgba(168, 85, 247, 0.2)', color: '#c084fc' };
+                  actionTitle = 'Booked Coach';
+                } else if (act.category === 'Sports Items') {
+                  iconClass = 'fa-cart-shopping';
+                  bgStyle = { backgroundColor: 'rgba(59, 130, 246, 0.2)', color: 'var(--secondary)' };
+                  actionTitle = 'Purchased';
+                } else if (act.category === 'Match') {
+                  iconClass = 'fa-trophy';
+                  bgStyle = { backgroundColor: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24' };
+                  actionTitle = 'Joined Match';
+                } else if (act.category === 'Turf') {
+                  iconClass = 'fa-calendar-check';
+                  bgStyle = { backgroundColor: 'rgba(16, 185, 129, 0.2)', color: 'var(--primary)' };
+                  actionTitle = 'Booked Turf';
+                }
+
+                const date = new Date(act.createdAt);
+                const timeString = date.toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                });
+
+                return (
+                  <li key={act.id}>
+                    <div className="activity-icon" style={bgStyle}><i className={`fa-solid ${iconClass}`}></i></div>
+                    <div className="activity-text">
+                      <strong>{actionTitle}:</strong> {act.title}
+                      <span>{timeString} ({act.status})</span>
+                    </div>
+                  </li>
+                );
+              })
+            )}
           </ul>
         </div>
 
